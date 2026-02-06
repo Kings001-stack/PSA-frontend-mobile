@@ -1,24 +1,56 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { Slot, useRouter, useSegments } from "expo-router";
+import { useEffect, useContext, useState } from "react";
+import { AuthProvider, AuthContext } from "../src/context/AuthContext";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+function RootLayoutNav() {
+  const { userToken, isLoading, user } = useContext(AuthContext);
+  const segments = useSegments();
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+  // Wait for the first render to complete before allowing navigation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || !isMounted) return;
+
+    const inAuthGroup = segments[0] === "(auth)";
+    const inAdminGroup = segments[0] === "(admin)";
+    const inUserGroup = segments[0] === "(user)";
+
+    if (!userToken && !inAuthGroup) {
+      // 1. Not logged in -> Redirect to Login
+      router.replace("/login");
+    } else if (userToken) {
+      // 2. Logged in -> Check Role
+      // Admin/Pharmacist -> Go to Admin Dashboard
+      const isAdmin = user?.role === 'admin' || user?.role === 'pharmacist';
+
+      if (inAuthGroup) {
+        // Coming from Login screen
+        router.replace(isAdmin ? "/(admin)" : "/(user)");
+      } else if (isAdmin && !inAdminGroup) {
+        // Admin trying to access non-admin pages (or root)
+        router.replace("/(admin)");
+      } else if (!isAdmin && !inUserGroup) {
+        // User trying to access non-user pages
+        router.replace("/(user)");
+      }
+    }
+  }, [userToken, user, isLoading, segments, isMounted]);
+
+  return <Slot />;
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
   );
 }
