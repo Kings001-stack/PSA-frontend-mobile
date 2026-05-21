@@ -1,6 +1,8 @@
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect, useContext, useState } from "react";
 import { AuthProvider, AuthContext } from "../src/context/AuthContext";
+import { ThemeProvider } from "../src/context/ThemeContext";
+import { PushNotificationProvider } from "../src/context/PushNotificationContext";
 
 function RootLayoutNav() {
   const { userToken, isLoading, user } = useContext(AuthContext);
@@ -21,6 +23,7 @@ function RootLayoutNav() {
 
     const inAuthGroup = segments[0] === "(auth)";
     const inAdminGroup = segments[0] === "(admin)";
+    const inSuperAdminGroup = segments[0] === "(super-admin)";
     const inUserGroup = segments[0] === "(user)";
 
     if (!userToken && !inAuthGroup) {
@@ -28,16 +31,25 @@ function RootLayoutNav() {
       router.replace("/login");
     } else if (userToken) {
       // 2. Logged in -> Check Role
-      // Admin/Pharmacist -> Go to Admin Dashboard
-      const isAdmin = user?.role === 'admin' || user?.role === 'pharmacist';
+      const isSuperAdmin = user?.role === "super_admin";
+      const isPharmacist = user?.role === "pharmacist";
 
       if (inAuthGroup) {
         // Coming from Login screen
-        router.replace(isAdmin ? "/(admin)" : "/(user)");
-      } else if (isAdmin && !inAdminGroup) {
-        // Admin trying to access non-admin pages (or root)
+        if (isSuperAdmin) {
+          router.replace("/(super-admin)" as any);
+        } else if (isPharmacist) {
+          router.replace("/(admin)");
+        } else {
+          router.replace("/(user)");
+        }
+      } else if (isSuperAdmin && !inSuperAdminGroup) {
+        // Super Admin trying to access non-super-admin pages
+        router.replace("/(super-admin)" as any);
+      } else if (isPharmacist && !inAdminGroup && !isSuperAdmin) {
+        // Pharmacist trying to access non-admin pages (or root)
         router.replace("/(admin)");
-      } else if (!isAdmin && !inUserGroup) {
+      } else if (!isPharmacist && !isSuperAdmin && !inUserGroup) {
         // User trying to access non-user pages
         router.replace("/(user)");
       }
@@ -49,8 +61,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <PushNotificationProvider>
+          <RootLayoutNav />
+        </PushNotificationProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

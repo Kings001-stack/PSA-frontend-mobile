@@ -1,272 +1,347 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { AuthContext } from '../context/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import React, { useState, useContext } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "../context/AuthContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import SuccessModal from "../components/SuccessModal";
+import DesignSystem from "../theme/designSystem";
 
 const LoginScreen: React.FC = () => {
-    const [email, setEmail] = useState<string>('');
-    const [password, setPassword] = useState<string>('');
-    const [showPassword, setShowPassword] = useState<boolean>(false);
-    const { login, isLoading } = useContext(AuthContext);
-    const router = useRouter();
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const { login, isLoading } = useContext(AuthContext);
+  const insets = useSafeAreaInsets();
 
-    const handleLogin = async () => {
-        if (!email || !password) {
-            Alert.alert('Error', 'Please enter both email and password');
-            return;
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setErrorMessage("Please enter both email and password");
+      setShowError(true);
+      return;
+    }
+
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) {
+      setErrorMessage("Please enter a valid email address");
+      setShowError(true);
+      return;
+    }
+
+    try {
+      await login(email, password);
+    } catch (e: any) {
+      let errorMsg = "Invalid email or password";
+
+      if (e?.response?.status === 422) {
+        const errors = e?.response?.data?.errors;
+        if (errors?.email && errors.email[0]) {
+          const errorText = errors.email[0];
+          if (errorText.toLowerCase().includes("suspended")) {
+            errorMsg = errorText;
+          }
         }
+      } else if (e?.response?.status === 429) {
+        errorMsg = "Too many login attempts. Please try again later.";
+      }
 
-        // Basic email regex
-        const emailRegex = /\S+@\S+\.\S+/;
-        if (!emailRegex.test(email)) {
-            Alert.alert('Error', 'Please enter a valid email address');
-            return;
-        }
+      setErrorMessage(errorMsg);
+      setShowError(true);
+    }
+  };
 
-        try {
-            await login(email, password);
-        } catch (e: any) {
-            const errorMessage = e?.response?.data?.message || 'Invalid credentials or server error. Please try again.';
-            Alert.alert('Login Failed', errorMessage);
-        }
-    };
+  return (
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={DesignSystem.colors.background.default}
+      />
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 40 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <View style={styles.logoContainer}>
+              <Ionicons
+                name="medical"
+                size={48}
+                color={DesignSystem.colors.primary[600]}
+              />
+            </View>
+            <Text style={styles.appName}>PrimeChem</Text>
+            <Text style={styles.tagline}>Healthcare Management System</Text>
+          </View>
+
+          {/* Login Card */}
+          <View style={styles.loginCard}>
+            <Text style={styles.welcomeText}>Welcome Back</Text>
+            <Text style={styles.subtitleText}>Sign in to continue</Text>
+
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email Address</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  emailFocused && styles.inputContainerFocused,
+                ]}
+              >
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color={
+                    emailFocused
+                      ? DesignSystem.colors.primary[600]
+                      : DesignSystem.colors.text.secondary
+                  }
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor={DesignSystem.colors.text.hint}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                />
+              </View>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  passwordFocused && styles.inputContainerFocused,
+                ]}
+              >
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={
+                    passwordFocused
+                      ? DesignSystem.colors.primary[600]
+                      : DesignSystem.colors.text.secondary
+                  }
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your password"
+                  placeholderTextColor={DesignSystem.colors.text.hint}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
+                    size={20}
+                    color={DesignSystem.colors.text.secondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Login Button */}
+            <TouchableOpacity
+              style={[
+                styles.loginButton,
+                isLoading && styles.loginButtonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={isLoading}
+              activeOpacity={0.8}
             >
-                <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-                    <View style={styles.wrapper}>
-                        <View style={styles.header}>
-                            <View style={styles.logoContainer}>
-                                <Ionicons name="medical" size={40} color="white" />
-                            </View>
-                            <Text style={styles.title}>PrimeChem</Text>
-                            <Text style={styles.subtitle}>Pharmacy Assistant</Text>
-                        </View>
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.loginButtonText}>Sign In</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                </>
+              )}
+            </TouchableOpacity>
 
-                        <View style={styles.form}>
-                            <Text style={styles.label}>Email Address</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="yourname@example.com"
-                                value={email}
-                                onChangeText={setEmail}
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                                placeholderTextColor="#9ca3af"
-                            />
+            {/* Footer Text */}
+            <Text style={styles.footerText}>
+              Secure healthcare management platform
+            </Text>
+          </View>
 
-                            <Text style={styles.label}>Password</Text>
-                            <View style={styles.passwordContainer}>
-                                <TextInput
-                                    style={styles.passwordInput}
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry={!showPassword}
-                                    placeholderTextColor="#9ca3af"
-                                />
-                                <TouchableOpacity
-                                    style={styles.eyeIcon}
-                                    onPress={() => setShowPassword(!showPassword)}
-                                >
-                                    <Ionicons
-                                        name={showPassword ? "eye-off-outline" : "eye-outline"}
-                                        size={22}
-                                        color="#6b7280"
-                                    />
-                                </TouchableOpacity>
-                            </View>
+          {/* Version Info */}
+          <Text style={styles.versionText}>Version 1.0.0</Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-                            <TouchableOpacity
-                                style={[styles.button, (!email || !password || isLoading) && styles.buttonDisabled]}
-                                onPress={handleLogin}
-                                disabled={isLoading || !email || !password}
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.buttonText}>Sign In</Text>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.forgotPass}>
-                                <Text style={styles.forgotPassText}>Forgot Password?</Text>
-                            </TouchableOpacity>
-
-                            <View style={styles.divider} />
-
-                            <TouchableOpacity
-                                style={styles.registerLink}
-                                onPress={() => router.push('/register')}
-                            >
-                                <Text style={styles.registerText}>Don't have an account? <Text style={styles.registerHighlight}>Sign Up</Text></Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
-    );
+      {/* Error Modal */}
+      <SuccessModal
+        visible={showError}
+        message={errorMessage}
+        type="error"
+        onClose={() => setShowError(false)}
+      />
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f9fafb',
-    },
-    scrollContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        padding: 24,
-    },
-    wrapper: {
-        backgroundColor: 'white',
-        padding: 32,
-        borderRadius: 24,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 15,
-        elevation: 8,
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 32,
-    },
-    logoContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 24,
-        backgroundColor: '#2563eb',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-        shadowColor: "#2563eb",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
-        elevation: 10,
-    },
-    logoIcon: {
-        width: 60,
-        height: 60,
-        backgroundColor: '#2563eb',
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    logoText: {
-        color: 'white',
-        fontSize: 32,
-        fontWeight: 'bold',
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#111827',
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginTop: 4,
-        textAlign: 'center',
-    },
-    form: {
-        marginTop: 8,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#374151',
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    input: {
-        backgroundColor: '#f3f4f6',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
-        fontSize: 16,
-        color: '#111827',
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    passwordContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f3f4f6',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        marginBottom: 20,
-    },
-    passwordInput: {
-        flex: 1,
-        padding: 16,
-        fontSize: 16,
-        color: '#111827',
-    },
-    eyeIcon: {
-        padding: 10,
-        marginRight: 6,
-    },
-    button: {
-        backgroundColor: '#2563eb',
-        padding: 18,
-        borderRadius: 14,
-        alignItems: 'center',
-        marginTop: 8,
-        shadowColor: "#2563eb",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    buttonDisabled: {
-        backgroundColor: '#93c5fd',
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    forgotPass: {
-        marginTop: 20,
-        alignItems: 'center',
-    },
-    forgotPassText: {
-        color: '#2563eb',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#e5e7eb',
-        width: '100%',
-        marginVertical: 24,
-    },
-    registerLink: {
-        alignItems: 'center',
-    },
-    registerText: {
-        fontSize: 14,
-        color: '#6b7280',
-    },
-    registerHighlight: {
-        color: '#2563eb',
-        fontWeight: '700',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: DesignSystem.colors.background.default,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: DesignSystem.spacing.lg,
+    paddingBottom: DesignSystem.spacing["3xl"],
+  },
+  logoSection: {
+    alignItems: "center",
+    marginBottom: DesignSystem.spacing["3xl"],
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: DesignSystem.borderRadius["2xl"],
+    backgroundColor: DesignSystem.colors.primary[50],
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: DesignSystem.spacing.md,
+    ...DesignSystem.shadows.md,
+  },
+  appName: {
+    fontSize: DesignSystem.typography.fontSize["3xl"],
+    fontWeight: "700",
+    color: DesignSystem.colors.text.primary,
+    marginBottom: DesignSystem.spacing.xs,
+  },
+  tagline: {
+    fontSize: DesignSystem.typography.fontSize.sm,
+    color: DesignSystem.colors.text.secondary,
+    fontWeight: "500",
+  },
+  loginCard: {
+    backgroundColor: DesignSystem.colors.background.paper,
+    borderRadius: DesignSystem.borderRadius["2xl"],
+    padding: DesignSystem.spacing.lg,
+    ...DesignSystem.shadows.lg,
+    borderWidth: 1,
+    borderColor: DesignSystem.colors.divider,
+  },
+  welcomeText: {
+    fontSize: DesignSystem.typography.fontSize["2xl"],
+    fontWeight: "700",
+    color: DesignSystem.colors.text.primary,
+    marginBottom: DesignSystem.spacing.xs,
+  },
+  subtitleText: {
+    fontSize: DesignSystem.typography.fontSize.base,
+    color: DesignSystem.colors.text.secondary,
+    marginBottom: DesignSystem.spacing.xl,
+  },
+  inputGroup: {
+    marginBottom: DesignSystem.spacing.lg,
+  },
+  label: {
+    fontSize: DesignSystem.typography.fontSize.sm,
+    fontWeight: "600",
+    color: DesignSystem.colors.text.primary,
+    marginBottom: DesignSystem.spacing.sm,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: DesignSystem.colors.background.paper,
+    borderWidth: 1.5,
+    borderColor: DesignSystem.colors.border,
+    borderRadius: DesignSystem.borderRadius.md,
+    paddingHorizontal: DesignSystem.spacing.md,
+    height: 52,
+  },
+  inputContainerFocused: {
+    borderColor: DesignSystem.colors.primary[600],
+    ...DesignSystem.shadows.sm,
+  },
+  inputIcon: {
+    marginRight: DesignSystem.spacing.sm,
+  },
+  input: {
+    flex: 1,
+    fontSize: DesignSystem.typography.fontSize.base,
+    color: DesignSystem.colors.text.primary,
+    height: "100%",
+  },
+  eyeIcon: {
+    padding: DesignSystem.spacing.xs,
+  },
+  loginButton: {
+    backgroundColor: DesignSystem.colors.primary[600],
+    height: 52,
+    borderRadius: DesignSystem.borderRadius.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: DesignSystem.spacing.md,
+    marginBottom: DesignSystem.spacing.md,
+    gap: DesignSystem.spacing.sm,
+    ...DesignSystem.shadows.md,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
+  loginButtonText: {
+    color: "#FFFFFF",
+    fontSize: DesignSystem.typography.fontSize.base,
+    fontWeight: "600",
+  },
+  footerText: {
+    textAlign: "center",
+    fontSize: DesignSystem.typography.fontSize.xs,
+    color: DesignSystem.colors.text.hint,
+    marginTop: DesignSystem.spacing.sm,
+  },
+  versionText: {
+    textAlign: "center",
+    fontSize: DesignSystem.typography.fontSize.xs,
+    color: DesignSystem.colors.text.hint,
+    marginTop: DesignSystem.spacing.xl,
+  },
 });
 
 export default LoginScreen;

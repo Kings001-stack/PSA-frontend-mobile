@@ -1,424 +1,437 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
-    View,
-    Text,
-    StyleSheet,
-    ActivityIndicator,
-    TextInput,
-    FlatList,
-    TouchableOpacity,
-    StatusBar,
-    Linking,
-    Platform
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import api from '../services/api';
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  StatusBar,
+  Linking,
+  Platform,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import api from "../services/api";
+import AnimatedIcon from "../components/AnimatedIcon";
+import UserDashboardHeader from "../components/UserDashboardHeader";
 
 interface MedicationAvailability {
-    name: string;
-    dosage: string;
-    form: string;
-    availability: 'available' | 'limited' | 'out_of_stock';
+  name: string;
+  dosage: string;
+  form: string;
+  availability: "available" | "limited" | "out_of_stock";
 }
 
 const MedicationSearchScreen: React.FC = () => {
-    const insets = useSafeAreaInsets();
-    const router = useRouter();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [medications, setMedications] = useState<MedicationAvailability[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [medications, setMedications] = useState<MedicationAvailability[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-    const performSearch = useCallback(async (query: string) => {
-        setIsLoading(true);
-        try {
-            const response = await api.get('/medications/search', {
-                params: { query }
-            });
-            setMedications(response.data);
-        } catch (error) {
-            console.error('Search failed', error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+  const performSearch = useCallback(async (query: string) => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/medications/search", {
+        params: { query },
+      });
+      setMedications(response.data);
+    } catch (error) {
+      console.error("Search failed", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            performSearch(searchQuery);
-        }, 500);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim()) {
+        performSearch(searchQuery);
+      } else {
+        setMedications([]);
+      }
+    }, 500);
 
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, performSearch]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, performSearch]);
 
-    const getStatusDetails = (status: string) => {
-        switch (status) {
-            case 'available':
-                return {
-                    label: 'Available',
-                    color: '#16a34a',
-                    bg: '#f0fdf4',
-                    icon: 'checkmark-circle'
-                };
-            case 'limited':
-                return {
-                    label: 'Limited Stock',
-                    color: '#ea580c',
-                    bg: '#fff7ed',
-                    icon: 'alert-circle'
-                };
-            case 'out_of_stock':
-                return {
-                    label: 'Out of Stock',
-                    color: '#dc2626',
-                    bg: '#fee2e2',
-                    icon: 'close-circle'
-                };
-            default:
-                return {
-                    label: 'Unknown',
-                    color: '#64748b',
-                    bg: '#f1f5f9',
-                    icon: 'help-circle'
-                };
-        }
-    };
+  const getStatusDetails = (status: string) => {
+    switch (status) {
+      case "available":
+        return {
+          label: "Available",
+          color: "#16a34a",
+          bg: "#dcfce7",
+          icon: "checkmark-circle" as const,
+        };
+      case "limited":
+        return {
+          label: "Limited Stock",
+          color: "#ea580c",
+          bg: "#fed7aa",
+          icon: "alert-circle" as const,
+        };
+      case "out_of_stock":
+        return {
+          label: "Out of Stock",
+          color: "#dc2626",
+          bg: "#fee2e2",
+          icon: "close-circle" as const,
+        };
+      default:
+        return {
+          label: "Unknown",
+          color: "#64748b",
+          bg: "#f1f5f9",
+          icon: "help-circle" as const,
+        };
+    }
+  };
 
-    const handleCallPharmacy = () => {
-        Linking.openURL('tel:09071906688');
-    };
+  const handleGoBack = () => {
+    try {
+      router.back();
+    } catch (error) {
+      console.error("Navigation error:", error);
+      try {
+        router.replace("/(user)");
+      } catch (fallbackError) {
+        console.error("Fallback navigation error:", fallbackError);
+      }
+    }
+  };
 
-    const renderMedication = ({ item }: { item: MedicationAvailability }) => {
-        const status = getStatusDetails(item.availability);
-        const isOutOfStock = item.availability === 'out_of_stock';
-        const isLimited = item.availability === 'limited';
+  const handleCallPharmacy = () => {
+    Linking.openURL("tel:09071906688");
+  };
 
-        return (
-            <View style={styles.card}>
-                <View style={styles.cardMain}>
-                    <View style={styles.medIconWrapper}>
-                        <View style={[styles.medIcon, { backgroundColor: status.bg }]}>
-                            <Ionicons name="medical" size={20} color={status.color} />
-                        </View>
-                    </View>
-
-                    <View style={styles.medContent}>
-                        <Text style={styles.medName}>{item.name}</Text>
-                        <Text style={styles.medDetail}>{item.dosage} • {item.form}</Text>
-
-                        <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-                            <Ionicons name={status.icon as any} size={12} color={status.color} />
-                            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-                        </View>
-                    </View>
-
-                    {isOutOfStock ? (
-                        <TouchableOpacity
-                            style={styles.callSmallBtn}
-                            onPress={handleCallPharmacy}
-                        >
-                            <Ionicons name="call" size={16} color="white" />
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity
-                            style={styles.infoBtn}
-                            onPress={() => router.push('/(user)/chat')}
-                        >
-                            <Ionicons name="chatbubble-ellipses" size={20} color="#2563eb" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {isOutOfStock && (
-                    <View style={styles.advisoryBox}>
-                        <Text style={styles.advisoryText}>
-                            This medication is currently unavailable. Please contact our pharmacist to check for alternatives or restock dates.
-                        </Text>
-                    </View>
-                )}
-
-                {isLimited && (
-                    <View style={[styles.advisoryBox, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
-                        <Text style={[styles.advisoryText, { color: '#9a3412' }]}>
-                            Stock is running low. We recommend contacting us or visiting soon to ensure availability.
-                        </Text>
-                    </View>
-                )}
-            </View>
-        );
-    };
+  const renderMedication = ({ item }: { item: MedicationAvailability }) => {
+    const status = getStatusDetails(item.availability);
+    const isOutOfStock = item.availability === "out_of_stock";
+    const isLimited = item.availability === "limited";
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" />
-
-            {/* Premium Header */}
-            <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-                <View style={styles.headerTop}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Ionicons name="chevron-back" size={28} color="white" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Medication Search</Text>
-                    <View style={{ width: 44 }} />
-                </View>
-
-                <View style={styles.searchSection}>
-                    <View style={styles.searchBar}>
-                        <Ionicons name="search" size={20} color="#94a3b8" />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search by name (e.g. Paracetamol)"
-                            placeholderTextColor="#94a3b8"
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                        />
-                        {isLoading ? (
-                            <ActivityIndicator size="small" color="#2563eb" />
-                        ) : searchQuery.length > 0 ? (
-                            <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                <Ionicons name="close-circle" size={20} color="#94a3b8" />
-                            </TouchableOpacity>
-                        ) : null}
-                    </View>
-                </View>
+      <View style={styles.medicationCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.medIconContainer}>
+            <View style={[styles.medIcon, { backgroundColor: status.bg }]}>
+              <Ionicons name="medical" size={22} color={status.color} />
             </View>
+          </View>
 
-            <FlatList
-                data={medications}
-                renderItem={renderMedication}
-                keyExtractor={(item, index) => `${item.name}-${index}`}
-                contentContainerStyle={styles.listContainer}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <View style={styles.emptyIconCircle}>
-                            <Ionicons name="search-outline" size={48} color="#cbd5e1" />
-                        </View>
-                        <Text style={styles.emptyTitle}>
-                            {searchQuery ? 'No Results Found' : 'Find Your Medication'}
-                        </Text>
-                        <Text style={styles.emptySubtitle}>
-                            {searchQuery
-                                ? `We couldn't find anything matching "${searchQuery}"`
-                                : 'Enter a medication name to check its availability status in real-time.'}
-                        </Text>
-                    </View>
-                }
-            />
+          <View style={styles.medInfo}>
+            <Text style={styles.medName}>{item.name}</Text>
+            <Text style={styles.medDetails}>
+              {item.dosage} • {item.form}
+            </Text>
+          </View>
 
-            {/* Support Action */}
+          {isOutOfStock ? (
             <TouchableOpacity
-                style={[styles.floatingSupport, { bottom: insets.bottom + 20 }]}
-                onPress={handleCallPharmacy}
+              style={styles.callIconBtn}
+              onPress={handleCallPharmacy}
+              activeOpacity={0.7}
             >
-                <Ionicons name="call" size={20} color="white" />
-                <Text style={styles.supportText}>Call Pharmacy</Text>
+              <Ionicons name="call" size={18} color="white" />
             </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.chatIconBtn}
+              onPress={() => router.push("/(user)/chat")}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chatbubble-ellipses" size={18} color="#2563eb" />
+            </TouchableOpacity>
+          )}
         </View>
+
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+            <Ionicons name={status.icon} size={14} color={status.color} />
+            <Text style={[styles.statusText, { color: status.color }]}>
+              {status.label}
+            </Text>
+          </View>
+        </View>
+
+        {isOutOfStock && (
+          <View style={styles.alertBox}>
+            <Ionicons name="information-circle" size={14} color="#991b1b" />
+            <Text style={styles.alertText}>
+              Currently unavailable. Contact pharmacist for alternatives or
+              restock dates.
+            </Text>
+          </View>
+        )}
+
+        {isLimited && (
+          <View
+            style={[
+              styles.alertBox,
+              { backgroundColor: "#fff7ed", borderColor: "#fed7aa" },
+            ]}
+          >
+            <Ionicons name="warning" size={14} color="#9a3412" />
+            <Text style={[styles.alertText, { color: "#9a3412" }]}>
+              Low stock. Contact us soon to ensure availability.
+            </Text>
+          </View>
+        )}
+      </View>
     );
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        translucent
+        backgroundColor="transparent"
+      />
+
+      {/* Enhanced Header */}
+      <UserDashboardHeader
+        title="Find Medications"
+        subtitle="Check availability in real-time"
+        showBackButton={true}
+      >
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color="#94a3b8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search medication name..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#2563eb" />
+            ) : searchQuery.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => setSearchQuery("")}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      </UserDashboardHeader>
+
+      {/* Results List */}
+      <FlatList
+        data={medications}
+        renderItem={renderMedication}
+        keyExtractor={(item, index) => `${item.name}-${index}`}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: insets.bottom + 100 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <AnimatedIcon
+              type={searchQuery ? "empty" : "loading"}
+              size={120}
+              loop={!searchQuery}
+            />
+            <Text style={styles.emptyTitle}>
+              {searchQuery ? "No Results Found" : "Search Medications"}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery
+                ? `No medications found matching "${searchQuery}"`
+                : "Enter a medication name to check availability"}
+            </Text>
+          </View>
+        }
+      />
+
+      {/* Floating Call Button */}
+      <TouchableOpacity
+        style={[styles.floatingCallBtn, { bottom: insets.bottom + 90 }]}
+        onPress={handleCallPharmacy}
+        activeOpacity={0.9}
+      >
+        <Ionicons name="call" size={24} color="white" />
+      </TouchableOpacity>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8fafc',
-    },
-    header: {
-        backgroundColor: '#1e3a8a',
-        paddingBottom: 24,
-        borderBottomLeftRadius: 32,
-        borderBottomRightRadius: 32,
-        shadowColor: '#1e3a8a',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
-        elevation: 10,
-    },
-    headerTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        marginBottom: 20,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: 'white',
-        letterSpacing: 0.5,
-    },
-    backBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    searchSection: {
-        paddingHorizontal: 20,
-    },
-    searchBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
-    },
-    searchInput: {
-        flex: 1,
-        marginLeft: 12,
-        fontSize: 16,
-        color: '#1e293b',
-        fontWeight: '500',
-    },
-    listContainer: {
-        padding: 20,
-        paddingBottom: 100,
-    },
-    card: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(30, 58, 138, 0.05)',
-        shadowColor: '#1e3a8a',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    cardMain: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    medIconWrapper: {
-        marginRight: 16,
-    },
-    medIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    medContent: {
-        flex: 1,
-    },
-    medName: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: '#1e293b',
-        marginBottom: 2,
-    },
-    medDetail: {
-        fontSize: 12,
-        color: '#64748b',
-        marginBottom: 8,
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'flex-start',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        gap: 4,
-    },
-    statusText: {
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    infoBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: '#eff6ff',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    callSmallBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: '#dc2626',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    advisoryBox: {
-        marginTop: 12,
-        padding: 12,
-        backgroundColor: '#fee2e2',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#fecaca',
-    },
-    advisoryText: {
-        fontSize: 11,
-        color: '#991b1b',
-        lineHeight: 16,
-        fontWeight: '500',
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 60,
-        paddingHorizontal: 40,
-    },
-    emptyIconCircle: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
-        backgroundColor: 'white',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 20,
-        elevation: 3,
-    },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#1e293b',
-        marginBottom: 8,
-    },
-    emptySubtitle: {
-        fontSize: 14,
-        color: '#64748b',
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    floatingSupport: {
-        position: 'absolute',
-        right: 20,
-        backgroundColor: '#1e3a8a',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 30,
-        gap: 8,
-        shadowColor: '#1e3a8a',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    supportText: {
-        color: 'white',
-        fontWeight: '700',
-        fontSize: 14,
-    }
+  container: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === "ios" ? 14 : 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    gap: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1e293b",
+    fontWeight: "500",
+  },
+  listContent: {
+    padding: 20,
+  },
+  medicationCard: {
+    backgroundColor: "white",
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: "#1e3a8a",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(30,58,138,0.06)",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  medIconContainer: {
+    marginRight: 14,
+  },
+  medIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  medInfo: {
+    flex: 1,
+  },
+  medName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
+  medDetails: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  chatIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#eff6ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  callIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#dc2626",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statusContainer: {
+    marginBottom: 12,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  alertBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#fee2e2",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  alertText: {
+    flex: 1,
+    fontSize: 11,
+    color: "#991b1b",
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 80,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#f1f5f9",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#334155",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#94a3b8",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  floatingCallBtn: {
+    position: "absolute",
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#16a34a",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#16a34a",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+    zIndex: 100,
+  },
 });
 
 export default MedicationSearchScreen;

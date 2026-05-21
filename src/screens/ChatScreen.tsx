@@ -191,25 +191,27 @@ const ChatScreen: React.FC = () => {
                 </View>
             </View>
 
-            <FlatList
-                ref={flatListRef}
-                data={messages}
-                renderItem={renderMessage}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContainer}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            />
-
-            {isTyping && (
-                <View style={styles.typingContainer}>
-                    <Text style={styles.typingText}>Pharmacist Assistant is thinking...</Text>
-                </View>
-            )}
-
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 20}
+                style={{ flex: 1 }}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
             >
+                <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    renderItem={renderMessage}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.listContainer}
+                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    keyboardShouldPersistTaps="handled"
+                />
+
+                {isTyping && (
+                    <View style={styles.typingContainer}>
+                        <Text style={styles.typingText}>Pharmacist Assistant is thinking...</Text>
+                    </View>
+                )}
+
                 {isEscalated ? (
                     <View style={styles.escalatedNotice}>
                         <Ionicons name="lock-closed" size={16} color="#4b5563" />
@@ -218,7 +220,7 @@ const ChatScreen: React.FC = () => {
                         </Text>
                     </View>
                 ) : (
-                    <View style={styles.inputBar}>
+                    <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
                         <TextInput
                             style={styles.input}
                             value={inputText}
@@ -237,7 +239,6 @@ const ChatScreen: React.FC = () => {
                     </View>
                 )}
             </KeyboardAvoidingView>
-            <View style={{ height: insets.bottom }} />
         </View>
     );
 };
