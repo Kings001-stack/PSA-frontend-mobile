@@ -18,9 +18,13 @@ import * as SecureStore from "expo-secure-store";
 // - 192.168.0.194 (updated: April 30, 2026 - afternoon)
 // - 10.77.181.244 (updated: April 30, 2026 - evening)
 // - 192.168.100.11 (updated: May 4, 2026 - evening)
+// - 192.168.0.194 (updated: May 9, 2026)
+// - 192.168.72.244 (updated: May 21, 2026)
 
-// Current Wi-Fi IP: 192.168.0.194 (updated: May 9, 2026)
-const BASE_URL = "http://192.168.0.194:8000";
+// - 192.168.100.11 (updated: May 25, 2026)
+
+// Current Wi-Fi IP: 192.168.100.11 (updated: May 31, 2026)
+const BASE_URL = "http://192.168.100.11:8000";
 export const API_URL = `${BASE_URL}/api`;
 export const STORAGE_URL = `${BASE_URL}/storage`;
 

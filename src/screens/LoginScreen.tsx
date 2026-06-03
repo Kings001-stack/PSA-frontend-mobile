@@ -27,6 +27,12 @@ const LoginScreen: React.FC = () => {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const { login, isLoading } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
+  const passwordInputRef = React.useRef<TextInput>(null);
+
+  const handleEmailFocus = () => setEmailFocused(true);
+  const handleEmailBlur = () => setEmailFocused(false);
+  const handlePasswordFocus = () => setPasswordFocused(true);
+  const handlePasswordBlur = () => setPasswordFocused(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -72,8 +78,9 @@ const LoginScreen: React.FC = () => {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <ScrollView
           contentContainerStyle={[
@@ -82,6 +89,8 @@ const LoginScreen: React.FC = () => {
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardDismissMode="none"
         >
           {/* Logo Section */}
           <View style={styles.logoSection}>
@@ -129,8 +138,14 @@ const LoginScreen: React.FC = () => {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordInputRef.current?.focus()}
+                  blurOnSubmit={false}
+                  editable={!isLoading}
+                  onFocus={handleEmailFocus}
+                  onBlur={handleEmailBlur}
                 />
               </View>
             </View>
@@ -155,6 +170,7 @@ const LoginScreen: React.FC = () => {
                   style={styles.inputIcon}
                 />
                 <TextInput
+                  ref={passwordInputRef}
                   style={styles.input}
                   placeholder="Enter your password"
                   placeholderTextColor={DesignSystem.colors.text.hint}
@@ -163,8 +179,13 @@ const LoginScreen: React.FC = () => {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
+                  autoComplete="password"
+                  textContentType="password"
+                  returnKeyType="go"
+                  onSubmitEditing={handleLogin}
+                  editable={!isLoading}
+                  onFocus={handlePasswordFocus}
+                  onBlur={handlePasswordBlur}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -306,6 +327,7 @@ const styles = StyleSheet.create({
     fontSize: DesignSystem.typography.fontSize.base,
     color: DesignSystem.colors.text.primary,
     height: "100%",
+    paddingVertical: 0,
   },
   eyeIcon: {
     padding: DesignSystem.spacing.xs,

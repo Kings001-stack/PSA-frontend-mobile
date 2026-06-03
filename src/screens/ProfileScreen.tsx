@@ -72,7 +72,26 @@ const ProfileScreen: React.FC = () => {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
+      const imageUri = result.assets[0].uri;
+
+      // Check file size (optional client-side check)
+      try {
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        const sizeInMB = blob.size / (1024 * 1024);
+
+        if (sizeInMB > 5) {
+          Alert.alert(
+            "Image Too Large",
+            `The selected image is ${sizeInMB.toFixed(1)}MB. Please choose an image smaller than 5MB.`,
+          );
+          return;
+        }
+      } catch (error) {
+        console.log("Could not check file size:", error);
+      }
+
+      setAvatarUri(imageUri);
     }
   };
 
@@ -142,10 +161,29 @@ const ProfileScreen: React.FC = () => {
     } catch (error: any) {
       console.error("Update failed", error);
       console.error("Error response:", error.response?.data);
-      Alert.alert(
-        "Error",
-        error.response?.data?.message || "Failed to update profile",
-      );
+
+      // Better error message handling
+      let errorMessage = "Failed to update profile";
+
+      if (error.response?.data?.errors?.avatar) {
+        const avatarError = error.response.data.errors.avatar[0];
+        if (avatarError.includes("greater than")) {
+          errorMessage =
+            "Image is too large. Please choose an image smaller than 5MB.";
+        } else if (
+          avatarError.includes("mimes") ||
+          avatarError.includes("image")
+        ) {
+          errorMessage =
+            "Invalid image format. Please use JPG, PNG, or WEBP images.";
+        } else {
+          errorMessage = avatarError;
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      Alert.alert("Error", errorMessage);
     } finally {
       setIsLoading(false);
     }
